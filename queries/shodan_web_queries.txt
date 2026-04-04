@@ -1,0 +1,56 @@
+# ============================================================
+# SHODAN WEB UI QUERIES — NO API KEY NEEDED
+# Copy-paste each line into https://www.shodan.io/search
+# ============================================================
+# Free Shodan account: ~2 pages of results per query
+# Academic/paid: full result export
+# ============================================================
+
+# --- GROWATT ---
+"Growatt" port:80,443,8080
+http.title:"Growatt"
+"server.growatt.com"
+http.html:"growatt" port:80,443
+
+# --- SUNGROW ---
+"Sungrow" port:80,443
+http.title:"iSolarCloud"
+"WiNet" port:80
+http.html:"sungrow" port:8080
+
+# --- SMA ---
+http.title:"Sunny Webbox"
+http.title:"SunnyPortal"
+"SMA" "Solar" port:80,443
+http.html:"SMA Solar Technology"
+
+# --- INDUSTRIAL PROTOCOLS (HIGH VALUE) ---
+port:502 "solar"              # Modbus TCP — unencrypted industrial control
+port:1883 "solar"             # MQTT — Sungrow dongles use hard-coded creds here
+port:8899 "inverter"          # Common inverter management port
+port:47808 "solar"            # BACnet (building automation, also used in some installs)
+
+# --- SOLARVIEW COMPACT (actively exploited — Japan bank theft botnet) ---
+http.title:"SolarView Compact"
+http.html:"SolarView"
+
+# --- BROADER SOLAR MONITORING ---
+http.title:"Solar" "inverter"
+http.title:"PV Monitor"
+http.title:"PV System"
+http.title:"Solar Monitor"
+http.html:"photovoltaic" port:80,443
+
+# --- USEFUL FILTERS TO APPEND ---
+# Add country filter:     country:"DE"  (Germany)
+# Add country filter:     country:"IT"  (Italy — high solar penetration)
+# Add country filter:     country:"ES"  (Spain)
+# Add country filter:     country:"US"
+# Add city filter:        city:"Berlin"
+# Filter by org:          org:"RWE" or org:"Enel"
+# Exclude honeypots:      -tag:honeypot
+# Only vulnerable:        vuln:CVE-2022-29303
+#
+# Example combined:
+#   http.title:"SolarView Compact" country:"JP"
+#   "Growatt" port:80 country:"DE" -tag:honeypot

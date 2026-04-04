@@ -1,0 +1,23 @@
+# Secrets
+.env
+
+# PII and sensitive property data
+PropertyData_Sample.txt
+data/raw/
+data/processed/
+
+# Generated outputs (reproducible from scripts)
+output/
+data/vuln.sqlite
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/

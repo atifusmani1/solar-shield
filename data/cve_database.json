@@ -1,0 +1,132 @@
+{
+  "metadata": {
+    "source": "Forescout SUN:DOWN research + NIST NVD",
+    "last_updated": "2025-05",
+    "total_solar_cves_known": 93,
+    "pct_high_or_critical": 80
+  },
+  "vendors": {
+    "Growatt": {
+      "risk_level": "CRITICAL",
+      "cve_ids": [],
+      "note": "30 vulnerabilities — Forescout did not assign CVE IDs; map by vendor name",
+      "issues": [
+        "IDOR on cloud API (no CVE assigned)",
+        "XSS account takeover (no CVE assigned)",
+        "Default password '123456' across ShineWiFi line",
+        "Unauthenticated username enumeration",
+        "Unauthenticated device serial number harvest"
+      ],
+      "attack_vector": "Cloud-only — no physical access needed",
+      "firmware_intel": {
+        "ShineWiFi-X v3.2.1": "VULNERABLE",
+        "ShineWiFi-X v3.4.0": "PATCHED",
+        "ShineLan-X (all known)": "VULNERABLE — CVE-2025-36753 UNPATCHED as of Dec 2025"
+      }
+    },
+    "Sungrow": {
+      "risk_level": "HIGH",
+      "cves": {
+        "CVE-2024-50685": {
+          "desc": "IDOR — serial number harvesting via iSolarCloud API",
+          "cvss": 7.5,
+          "severity": "HIGH",
+          "component": "iSolarCloud web/app",
+          "patched": true
+        },
+        "CVE-2024-50692": {
+          "desc": "Hard-coded MQTT credentials in WiNet dongle",
+          "cvss": 9.8,
+          "severity": "CRITICAL",
+          "component": "WiNet-S dongle firmware",
+          "patched": true,
+          "note": "Hard-coded creds allow any attacker to read/write inverter data"
+        },
+        "CVE-2024-50693": {
+          "desc": "IDOR — unauthorized access to other users' device data",
+          "cvss": 7.5,
+          "severity": "HIGH",
+          "component": "iSolarCloud",
+          "patched": true
+        },
+        "CVE-2024-50686": {
+          "desc": "IDOR — access to firmware files of arbitrary devices",
+          "cvss": 7.5,
+          "severity": "HIGH",
+          "component": "iSolarCloud",
+          "patched": true
+        }
+      },
+      "firmware_intel": {
+        "WiNet-S v1.1.0": "VULNERABLE (hard-coded MQTT)",
+        "WiNet-S v1.3.2": "PATCHED"
+      }
+    },
+    "SMA": {
+      "risk_level": "CRITICAL",
+      "cves": {
+        "CVE-2025-0731": {
+          "desc": "RCE via unauthenticated file upload on SunnyPortal web interface",
+          "cvss": 9.8,
+          "severity": "CRITICAL",
+          "component": "SunnyPortal",
+          "patched": false,
+          "note": "Remote code execution — full device takeover"
+        }
+      },
+      "firmware_intel": {}
+    },
+    "SolarView": {
+      "risk_level": "CRITICAL",
+      "note": "Actively exploited in the wild — 800 devices hijacked for bank theft in Japan (2023)",
+      "cves": {
+        "CVE-2022-29303": {
+          "desc": "OS command injection via contray.php",
+          "cvss": 9.8,
+          "severity": "CRITICAL",
+          "component": "SolarView Compact v6.0",
+          "patched": false,
+          "exploited_in_wild": true
+        },
+        "CVE-2023-23333": {
+          "desc": "Command injection — arbitrary OS command execution",
+          "cvss": 9.8,
+          "severity": "CRITICAL",
+          "component": "SolarView Compact",
+          "patched": false,
+          "exploited_in_wild": true
+        }
+      },
+      "firmware_intel": {
+        "SolarView Compact v6.0": "CRITICAL — actively exploited",
+        "SolarView Compact v8.0": "CRITICAL — verify patch status"
+      }
+    },
+    "Growatt_ShineLan": {
+      "risk_level": "HIGH",
+      "cves": {
+        "CVE-2025-36753": {
+          "desc": "Default debug interface allows extraction of device secrets",
+          "cvss": "HIGH",
+          "severity": "HIGH",
+          "component": "ShineLan-X dongle",
+          "patched": false,
+          "note": "Disclosed December 2025 — UNPATCHED"
+        }
+      }
+    }
+  },
+  "keyword_to_vendor_map": {
+    "growatt": "Growatt",
+    "shinewifi": "Growatt",
+    "shinelan": "Growatt_ShineLan",
+    "sungrow": "Sungrow",
+    "isolarcloud": "Sungrow",
+    "winet": "Sungrow",
+    "sma": "SMA",
+    "sunnyportal": "SMA",
+    "sunny webbox": "SMA",
+    "solarview": "SolarView",
+    "solar view": "SolarView"
+  }
+}

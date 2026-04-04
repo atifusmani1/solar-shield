@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "source": "IRENA Renewable Capacity Statistics 2024 + SolarPower Europe + EIA",
+    "unit": "GW installed solar PV capacity",
+    "year": 2024
+  },
+  "europe": {
+    "total_solar_gw": 336,
+    "destabilization_threshold_pct": 2.0,
+    "destabilization_threshold_gw": 6.72,
+    "countries": {
+      "DE": {"name": "Germany",   "solar_gw": 90.0,  "grid_critical": true},
+      "ES": {"name": "Spain",     "solar_gw": 32.0,  "grid_critical": true},
+      "IT": {"name": "Italy",     "solar_gw": 30.0,  "grid_critical": true},
+      "NL": {"name": "Netherlands","solar_gw": 24.0, "grid_critical": true},
+      "PL": {"name": "Poland",    "solar_gw": 18.0,  "grid_critical": false},
+      "FR": {"name": "France",    "solar_gw": 21.0,  "grid_critical": true},
+      "GB": {"name": "UK",        "solar_gw": 17.0,  "grid_critical": false},
+      "BE": {"name": "Belgium",   "solar_gw": 10.0,  "grid_critical": false},
+      "AT": {"name": "Austria",   "solar_gw": 6.5,   "grid_critical": false},
+      "PT": {"name": "Portugal",  "solar_gw": 5.5,   "grid_critical": false},
+      "GR": {"name": "Greece",    "solar_gw": 7.0,   "grid_critical": false},
+      "CZ": {"name": "Czech Rep.","solar_gw": 3.5,   "grid_critical": false},
+      "HU": {"name": "Hungary",   "solar_gw": 6.5,   "grid_critical": false},
+      "RO": {"name": "Romania",   "solar_gw": 3.0,   "grid_critical": false},
+      "SE": {"name": "Sweden",    "solar_gw": 4.5,   "grid_critical": false},
+      "DK": {"name": "Denmark",   "solar_gw": 4.0,   "grid_critical": false}
+    }
+  },
+  "us_states": {
+    "source": "EIA Electric Power Monthly",
+    "CA": {"name": "California",  "solar_gw": 50.0,  "grid_critical": true},
+    "TX": {"name": "Texas",       "solar_gw": 25.0,  "grid_critical": true},
+    "FL": {"name": "Florida",     "solar_gw": 14.0,  "grid_critical": false},
+    "AZ": {"name": "Arizona",     "solar_gw": 10.0,  "grid_critical": false},
+    "NC": {"name": "North Carolina","solar_gw": 9.0, "grid_critical": false},
+    "NY": {"name": "New York",    "solar_gw": 7.0,   "grid_critical": false},
+    "NV": {"name": "Nevada",      "solar_gw": 6.5,   "grid_critical": false},
+    "NJ": {"name": "New Jersey",  "solar_gw": 5.5,   "grid_critical": false},
+    "MA": {"name": "Massachusetts","solar_gw": 4.5,  "grid_critical": false},
+    "VA": {"name": "Virginia",    "solar_gw": 4.0,   "grid_critical": false}
+  },
+  "avg_residential_inverter_kw": 7.5,
+  "avg_commercial_inverter_kw": 50.0,
+  "avg_mixed_inverter_kw": 10.0
+}

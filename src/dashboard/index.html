@@ -85,6 +85,17 @@ body::before {
   justify-content: space-between;
   z-index: 10;
 }
+.title-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.title-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(0,255,65,0.28));
+}
 .title-bar .brand {
   font-family: var(--font-display);
   font-size: 14px;
@@ -601,6 +612,13 @@ body::before {
   transition: opacity 0.5s;
 }
 .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.loading-logo {
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+  margin-bottom: 18px;
+  filter: drop-shadow(0 0 18px rgba(0,255,65,0.2));
+}
 .loading-text {
   font-family: var(--font-display);
   font-size: 18px;
@@ -641,6 +659,7 @@ body::before {
 
 <!-- LOADING SCREEN -->
 <div class="loading-overlay" id="loading">
+  <img class="loading-logo" src="/static/solar-shield-logo-no-text.png" alt="SolarShield logo">
   <div class="loading-text">SOLARSHIELD</div>
   <div class="loading-sub">INITIALIZING GRID THREAT MAP...</div>
   <div class="loading-bar"><div class="loading-bar-fill" id="loading-bar"></div></div>
@@ -652,7 +671,8 @@ body::before {
 
   <!-- TITLE BAR -->
   <div class="title-bar">
-    <div style="display:flex;align-items:center;">
+    <div class="title-brand">
+      <img class="title-logo" src="/static/solar-shield-logo-no-text.png" alt="SolarShield logo">
       <span class="brand">SOLARSHIELD</span>
       <span class="sub">GRID THREAT INTELLIGENCE // V1.0</span>
     </div>

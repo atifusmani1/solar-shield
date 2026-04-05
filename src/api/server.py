@@ -52,6 +52,8 @@ def get_risk_data() -> pd.DataFrame:
         risk["geo_id"] = risk["geo_id"].str.zfill(5)
         centroids = pd.read_csv(PROCESSED / "zcta_centroids.csv", dtype={"geo_id": str})
         centroids["geo_id"] = centroids["geo_id"].str.zfill(5)
+        # Drop lat/lon from risk if present so the merge doesn't create _x/_y duplicates
+        risk = risk.drop(columns=["lat", "lon"], errors="ignore")
         _risk_df = risk.merge(centroids, on="geo_id", how="inner")
     return _risk_df
 
@@ -125,7 +127,10 @@ def stats():
 @app.get("/api/vendors")
 def vendor_data():
     """Return vendor risk priors."""
-    vendors = get_vendors()
+    vendors = get_vendors().copy()
+    # Normalise column name and scale to 0-100 for the dashboard
+    if "vendor_risk_prior" in vendors.columns and "vendor_risk_score" not in vendors.columns:
+        vendors["vendor_risk_score"] = (vendors["vendor_risk_prior"] * 100).round(1)
     return vendors.to_dict(orient="records")
 
 
@@ -139,6 +144,7 @@ def top_zips(n: int = Query(default=25, le=100)):
         "solar_candidate_share", "owner_occupancy_rate", "single_family_share",
         "median_home_value", "median_household_income", "total_housing_units",
     ]
+    cols = [c for c in cols if c in df.columns]
     return df[cols].fillna("").to_dict(orient="records")
 
 

@@ -110,8 +110,12 @@ def lookup_property(
     rec = records[0]
     results = rec.get("Results", "")
 
-    # Melissa result codes: AS01 = address match, GS = geocode success
-    if "AS01" not in results and "AS02" not in results:
+    # Melissa result codes:
+    #   AS01/AS02 = address verified (Address API)
+    #   YS02 = property record found (Property API)
+    #   YC01 = record matched
+    has_match = any(code in results for code in ("AS01", "AS02", "YS02", "YC01"))
+    if not has_match:
         return PropertyResult(
             success=False,
             error=f"Address not matched (Results: {results})",
@@ -132,34 +136,54 @@ def lookup_property(
         except (TypeError, ValueError):
             return None
 
+    # Helper to get values from nested or flat response structure
+    def get(key: str, *nested_paths: tuple[str, str]) -> str:
+        """Try flat key first, then nested group.field paths."""
+        val = rec.get(key, "")
+        if val:
+            return str(val)
+        for group, field in nested_paths:
+            grp = rec.get(group, {})
+            if isinstance(grp, dict):
+                val = grp.get(field, "")
+                if val:
+                    return str(val)
+        return ""
+
     # Owner occupied: Melissa returns "Y"/"N" or "O"/"R" in some fields
-    occ_raw = rec.get("OwnerOccupied", "")
+    occ_raw = get("OwnerOccupied", ("PrimaryOwner", "OwnerOccupied"))
     owner_occupied = True if occ_raw in ("Y", "O") else (False if occ_raw in ("N", "R") else None)
+
+    # Parse address — may be flat or nested
+    addr_line = get("AddressLine1", ("Address", "AddressLine1")) or address
+    zip_val = get("PostalCode", ("Address", "PostalCode")) or zip_code
+    city_val = get("City", ("Address", "City")) or city
+    state_val = get("State", ("Address", "State")) or state
 
     return PropertyResult(
         success=True,
-        address=rec.get("AddressLine1", address),
-        zip_code=rec.get("PostalCode", zip_code)[:5] if rec.get("PostalCode") else zip_code,
-        city=rec.get("City", city),
-        state=rec.get("State", state),
-        lat=safe_float(rec.get("Latitude")),
-        lon=safe_float(rec.get("Longitude")),
+        address=addr_line,
+        zip_code=zip_val[:5] if zip_val else zip_code,
+        city=city_val,
+        state=state_val,
+        lat=safe_float(get("Latitude", ("GeoCode", "Latitude"))),
+        lon=safe_float(get("Longitude", ("GeoCode", "Longitude"))),
 
-        year_built=safe_int(rec.get("YearBuilt")),
-        property_type=rec.get("PropertyType", ""),
-        structure_style=rec.get("StructureStyle", ""),
-        bedrooms=safe_int(rec.get("Bedrooms")),
-        baths=safe_float(rec.get("BathsTotal") or rec.get("BathsFull")),
-        sq_ft=safe_int(rec.get("AreaBuilding") or rec.get("SquareFeet")),
-        lot_size=safe_float(rec.get("LotAcres") or rec.get("LotSizeAcres")),
-        stories=safe_int(rec.get("Stories")),
+        year_built=safe_int(get("YearBuilt", ("PropertyUseInfo", "YearBuilt"))),
+        property_type=get("PropertyType", ("PropertyUseInfo", "PropertyType")),
+        structure_style=get("StructureStyle", ("PropertyUseInfo", "StructureStyle")),
+        bedrooms=safe_int(get("Bedrooms", ("IntRoomInfo", "BedroomsCount"))),
+        baths=safe_float(get("BathsTotal", ("IntRoomInfo", "BathCount"))),
+        sq_ft=safe_int(get("AreaBuilding", ("PropertySize", "AreaBuilding"))),
+        lot_size=safe_float(get("LotAcres", ("PropertySize", "AreaLotAcres"))),
+        stories=safe_int(get("Stories", ("IntRoomInfo", "StoriesCount"))),
 
-        owner_name=rec.get("OwnerName1", ""),
+        owner_name=get("OwnerName1", ("PrimaryOwner", "Name1Full")),
         owner_occupied=owner_occupied,
-        assessed_value=safe_float(rec.get("AssessedValueTotal")),
-        market_value=safe_float(rec.get("MarketValueTotal") or rec.get("EstimatedValue")),
-        last_sale_price=safe_float(rec.get("SaleAmount")),
-        last_sale_date=rec.get("SaleDate", ""),
+        assessed_value=safe_float(get("AssessedValueTotal", ("Tax", "AssessedValueTotal"))),
+        market_value=safe_float(get("MarketValueTotal", ("Tax", "MarketValueTotal"), ("Valuation", "EstimatedValue"))),
+        last_sale_price=safe_float(get("SaleAmount", ("SaleInfo", "DeedLastSalePrice"), ("SaleInfo", "AssessorLastSaleAmount"))),
+        last_sale_date=get("SaleDate", ("SaleInfo", "DeedLastSaleDate"), ("SaleInfo", "AssessorLastSaleDate")),
 
         raw=rec,
     )

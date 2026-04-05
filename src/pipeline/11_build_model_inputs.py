@@ -17,7 +17,7 @@ from pathlib import Path
 import pandas as pd
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = REPO_ROOT / "output"
 PROCESSED_DIR = REPO_ROOT / "data" / "processed"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
@@ -27,6 +27,9 @@ AFFECTED_PRODUCTS_PATH = OUTPUT_DIR / "vulnerability_affected_products.csv"
 COMMUNITY_CENSUS_PATH = PROCESSED_DIR / "community_features_by_census.csv"
 COMMUNITY_ZIP_PATH = PROCESSED_DIR / "community_features_by_zip.csv"
 COMMUNITY_FIPS_PATH = PROCESSED_DIR / "community_features_by_fips.csv"
+
+# Census-derived community features (nationwide, from script 12)
+CENSUS_COMMUNITY_ZIP_PATH = PROCESSED_DIR / "census_community_features_by_zip.csv"
 
 SOLAR_VENDOR_ALLOWLIST = {
     "growatt": "Growatt",
@@ -205,12 +208,13 @@ def enrich_community_table(path: Path, geo_col: str, global_priors: dict) -> pd.
     for key, value in global_priors.items():
         df[key] = value
 
+    # garage_share not available from Census ACS — default to 0 if missing
     df["solar_readiness_score"] = (
         0.35 * df["single_family_share"].fillna(0)
         + 0.25 * df["residential_share"].fillna(0)
         + 0.20 * df["solar_candidate_share"].fillna(0)
-        + 0.10 * (df["high_value_share"].fillna(0))
-        + 0.10 * (df["garage_share"].fillna(0))
+        + 0.10 * df["high_value_share"].fillna(0)
+        + 0.10 * df.get("garage_share", pd.Series(0, index=df.index)).fillna(0)
     ) * 100
 
     df["community_risk_prior_score"] = (
@@ -219,7 +223,8 @@ def enrich_community_table(path: Path, geo_col: str, global_priors: dict) -> pd.
     ).round(2)
 
     df = df.sort_values("community_risk_prior_score", ascending=False).reset_index(drop=True)
-    df = df.rename(columns={geo_col: "geo_id"})
+    if geo_col in df.columns and geo_col != "geo_id":
+        df = df.rename(columns={geo_col: "geo_id"})
     return df
 
 
@@ -250,30 +255,52 @@ def main() -> None:
     ].rename(columns={"vendor_canonical": "vendor"}).to_csv(curated_out, index=False)
     vendor_priors.to_csv(vendor_out, index=False)
 
-    census = enrich_community_table(COMMUNITY_CENSUS_PATH, "effective_census_key_decennial", global_priors)
-    zip_table = enrich_community_table(COMMUNITY_ZIP_PATH, "ZipCode", global_priors)
-    fips_table = enrich_community_table(COMMUNITY_FIPS_PATH, "effective_fips_code", global_priors)
-
     census_out = PROCESSED_DIR / "community_model_inputs_by_census.csv"
     zip_out = PROCESSED_DIR / "community_model_inputs_by_zip.csv"
     fips_out = PROCESSED_DIR / "community_model_inputs_by_fips.csv"
+    census_nationwide_out = PROCESSED_DIR / "community_model_inputs_census_nationwide.csv"
 
-    census.to_csv(census_out, index=False)
-    zip_table.to_csv(zip_out, index=False)
-    fips_table.to_csv(fips_out, index=False)
+    # Melissa-derived tables (single-ZIP property data, if available)
+    if COMMUNITY_CENSUS_PATH.exists():
+        census = enrich_community_table(COMMUNITY_CENSUS_PATH, "effective_census_key_decennial", global_priors)
+        census.to_csv(census_out, index=False)
+        print(f"Saved census model inputs: {census_out}")
+    else:
+        census = None
+        print(f"[SKIP] {COMMUNITY_CENSUS_PATH} not found")
+
+    if COMMUNITY_ZIP_PATH.exists():
+        zip_table = enrich_community_table(COMMUNITY_ZIP_PATH, "ZipCode", global_priors)
+        zip_table.to_csv(zip_out, index=False)
+        print(f"Saved ZIP model inputs: {zip_out}")
+    else:
+        zip_table = None
+        print(f"[SKIP] {COMMUNITY_ZIP_PATH} not found")
+
+    if COMMUNITY_FIPS_PATH.exists():
+        fips_table = enrich_community_table(COMMUNITY_FIPS_PATH, "effective_fips_code", global_priors)
+        fips_table.to_csv(fips_out, index=False)
+        print(f"Saved FIPS model inputs: {fips_out}")
+    else:
+        print(f"[SKIP] {COMMUNITY_FIPS_PATH} not found")
+
+    # Census ACS nationwide ZIP table (from script 12)
+    if CENSUS_COMMUNITY_ZIP_PATH.exists():
+        census_nationwide = enrich_community_table(CENSUS_COMMUNITY_ZIP_PATH, "geo_id", global_priors)
+        census_nationwide.to_csv(census_nationwide_out, index=False)
+        print(f"Saved nationwide census model inputs: {census_nationwide_out} ({len(census_nationwide)} ZCTAs)")
+    else:
+        print(f"[SKIP] {CENSUS_COMMUNITY_ZIP_PATH} not found — run scripts/12_fetch_census_community_features.py first")
 
     print(f"Saved curated solar products: {curated_out}")
     print(f"Saved vendor priors: {vendor_out}")
-    print(f"Saved census model inputs: {census_out}")
-    print(f"Saved ZIP model inputs: {zip_out}")
-    print(f"Saved FIPS model inputs: {fips_out}")
     print(
         "Summary:",
         {
             "curated_rows": len(curated),
             "curated_unique_cves": int(curated["cve_id"].nunique()),
             "curated_vendors": int(curated["vendor_canonical"].nunique()),
-            "community_rows_census": len(census),
+            "community_rows_census": len(census) if census is not None else 0,
         },
     )
 

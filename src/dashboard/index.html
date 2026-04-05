@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLARSHIELD // GRID THREAT MAP</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+<style>
+/* ── DESIGN SYSTEM VARS ─────────────────────────────────────────── */
+:root {
+  --bg-void: #000000;
+  --bg-base: #020a04;
+  --bg-panel: #040f06;
+  --bg-panel-2: #071409;
+  --bg-panel-3: #0a1a0c;
+  --green-dim: #0a4a12;
+  --green-mid: #0d7a1a;
+  --green-bright: #00ff41;
+  --green-glow: #39ff6a;
+  --green-muted: #1a8a2a;
+  --green-text: #22cc44;
+  --green-label: #66ff88;
+  --yellow-warn: #f0e040;
+  --yellow-hot: #ffff00;
+  --red-alert: #ff2222;
+  --red-mid: #cc1111;
+  --red-dim: #661111;
+  --red-bright: #ff4444;
+  --orange-warn: #ff6600;
+  --cyan-info: #00ddff;
+  --cyan-dim: #006688;
+  --cyan-bright: #44eeff;
+  --gray-dim: #334433;
+  --gray-mid: #446644;
+  --border-green: #0d5a12;
+  --border-bright: #1aaa2a;
+  --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+  --font-display: 'Orbitron', sans-serif;
+  --font-crt: 'VT323', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-void);
+  color: var(--green-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-x: hidden;
+  height: 100vh;
+}
+
+/* Scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,20,0,0.12) 2px, rgba(0,20,0,0.12) 4px
+  );
+  pointer-events: none;
+  z-index: 99999;
+}
+
+/* ── LAYOUT ──────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100vh;
+  background: var(--bg-base);
+}
+
+/* ── TITLE BAR ───────────────────────────────────────────────────── */
+.title-bar {
+  background: var(--bg-panel-2);
+  border-bottom: 2px solid var(--green-mid);
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+.title-bar .brand {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--green-bright);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+.title-bar .sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--green-muted);
+  letter-spacing: 1px;
+  margin-left: 14px;
+}
+.title-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid;
+}
+.tag-green { color: var(--green-bright); border-color: var(--green-bright); background: rgba(0,255,65,0.08); }
+.tag-green-filled { color: #000; background: var(--green-bright); border-color: var(--green-bright); }
+.tag-red { color: var(--red-bright); border-color: var(--red-bright); background: rgba(255,34,34,0.08); }
+.tag-yellow { color: var(--yellow-warn); border-color: var(--yellow-warn); background: rgba(240,224,64,0.08); }
+.tag-cyan { color: var(--cyan-bright); border-color: var(--cyan-info); background: rgba(0,221,255,0.08); }
+
+/* ── STAT STRIP ──────────────────────────────────────────────────── */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--green-dim);
+  border-bottom: 1px solid var(--border-green);
+}
+.stat-card {
+  background: var(--bg-panel);
+  padding: 10px 14px;
+  position: relative;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--green-bright), transparent);
+}
+.stat-lbl {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--green-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.stat-num {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+.stat-num-green { color: var(--green-bright); text-shadow: 0 0 12px rgba(0,255,65,0.5); }
+.stat-num-yellow { color: var(--yellow-hot); text-shadow: 0 0 12px rgba(255,255,0,0.5); }
+.stat-num-red { color: var(--red-bright); text-shadow: 0 0 12px rgba(255,34,34,0.5); }
+.stat-num-cyan { color: var(--cyan-bright); text-shadow: 0 0 12px rgba(68,238,255,0.5); }
+.stat-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  margin-top: 2px;
+  color: var(--green-muted);
+}
+
+/* ── MAIN CONTENT ────────────────────────────────────────────────── */
+.main-content {
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+.map-container {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  background: var(--bg-void);
+}
+
+/* ── MAP CONTAINER ───────────────────────────────────────────────── */
+#map-deck {
+  width: 100%;
+  height: 100%;
+}
+.map-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(4,15,6,0.92);
+  border: 1px solid var(--border-green);
+  padding: 10px 14px;
+  z-index: 10;
+}
+.map-legend .section-label {
+  font-size: 8px;
+  color: var(--green-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--green-dim);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 9px;
+  color: var(--green-text);
+  letter-spacing: 1px;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Map tooltip */
+.map-tooltip {
+  position: absolute;
+  background: rgba(4,15,6,0.95);
+  border: 1px solid var(--border-bright);
+  padding: 10px 14px;
+  pointer-events: none;
+  z-index: 20;
+  min-width: 200px;
+  display: none;
+}
+.map-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green-bright), transparent);
+}
+.tooltip-zip { font-family: var(--font-display); font-size: 12px; color: var(--green-bright); letter-spacing: 2px; }
+.tooltip-score { font-family: var(--font-crt); font-size: 24px; line-height: 1; margin: 4px 0; }
+.tooltip-row { font-size: 9px; color: var(--green-text); display: flex; justify-content: space-between; padding: 1px 0; }
+.tooltip-label { color: var(--green-muted); }
+
+/* ── RIGHT PANEL ─────────────────────────────────────────────────── */
+.right-panel {
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-green);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+  width: 340px;
+  min-width: 0;
+  transition: width 0.25s ease;
+  flex-shrink: 0;
+}
+.right-panel.collapsed {
+  width: 0;
+  overflow: hidden;
+  border-left: none;
+}
+.right-panel::-webkit-scrollbar { width: 4px; }
+.right-panel::-webkit-scrollbar-track { background: var(--bg-void); }
+.right-panel::-webkit-scrollbar-thumb { background: var(--green-dim); }
+
+/* Drag handle + collapse button */
+.panel-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  background: var(--border-green);
+  transition: background 0.15s;
+  z-index: 5;
+}
+.panel-resize-handle:hover { background: var(--green-mid); }
+
+.panel-toggle-btn {
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-green);
+  border-right: none;
+  color: var(--green-bright);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  writing-mode: vertical-lr;
+  letter-spacing: 2px;
+  font-family: var(--font-mono);
+}
+.panel-toggle-btn:hover { background: rgba(0,255,65,0.1); }
+
+/* Float toggle when collapsed */
+.panel-float-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 48px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-green);
+  border-right: none;
+  color: var(--green-bright);
+  font-size: 10px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  writing-mode: vertical-lr;
+  letter-spacing: 2px;
+  font-family: var(--font-mono);
+}
+.panel-float-toggle:hover { background: rgba(0,255,65,0.1); }
+
+.panel-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-green);
+}
+.panel-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--green-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--green-dim);
+}
+
+/* ── ADDRESS LOOKUP ──────────────────────────────────────────────── */
+.terminal-input {
+  background: var(--bg-void);
+  border: 1px solid var(--border-bright);
+  color: var(--green-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 10px;
+  outline: none;
+  width: 100%;
+  margin-bottom: 6px;
+}
+.terminal-input:focus { border-color: var(--green-bright); }
+.terminal-input::placeholder { color: var(--green-dim); }
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.terminal-btn {
+  background: transparent;
+  border: 1px solid var(--green-mid);
+  color: var(--green-bright);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 6px;
+  transition: all 0.15s;
+}
+.terminal-btn:hover { background: rgba(0,255,65,0.1); border-color: var(--green-bright); }
+.terminal-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.terminal-btn-active {
+  background: rgba(0,255,65,0.15);
+  border-color: var(--green-bright);
+  animation: pulse-border 1.5s infinite;
+}
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--green-bright); }
+  50% { border-color: var(--green-mid); }
+}
+
+/* ── PROPERTY CARD ───────────────────────────────────────────────── */
+#property-card { display: none; }
+#property-card.active { display: block; }
+
+.property-header {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan-bright);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.property-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+}
+.prop-item {
+  padding: 2px 0;
+}
+.prop-label {
+  font-size: 8px;
+  color: var(--green-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.prop-value {
+  font-family: var(--font-crt);
+  font-size: 18px;
+  color: var(--green-bright);
+  line-height: 1.1;
+}
+.prop-value-sm {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green-text);
+}
+
+/* Community risk badge */
+.risk-badge {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid;
+  position: relative;
+}
+.risk-badge::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+}
+.risk-badge-high { border-color: var(--red-dim); }
+.risk-badge-high::before { background: var(--red-alert); }
+.risk-badge-high .risk-tier { color: var(--red-bright); }
+.risk-badge-medium { border-color: var(--orange-mid); }
+.risk-badge-medium::before { background: var(--orange-warn); }
+.risk-badge-medium .risk-tier { color: var(--orange-warn); }
+.risk-badge-low { border-color: var(--green-dim); }
+.risk-badge-low::before { background: var(--green-mid); }
+.risk-badge-low .risk-tier { color: var(--green-text); }
+.risk-tier {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.risk-score-big {
+  font-family: var(--font-crt);
+  font-size: 36px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* ── SOLAR ASSESSMENT ────────────────────────────────────────────── */
+.solar-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid;
+  margin-top: 8px;
+}
+.solar-high { color: var(--red-bright); border-color: var(--red-bright); background: rgba(255,34,34,0.08); }
+.solar-medium { color: var(--yellow-warn); border-color: var(--yellow-warn); background: rgba(240,224,64,0.08); }
+.solar-low { color: var(--green-text); border-color: var(--green-mid); background: rgba(0,255,65,0.05); }
+
+/* ── VENDOR BARS ─────────────────────────────────────────────────── */
+.bar-item {
+  display: grid;
+  grid-template-columns: 70px 1fr 32px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.bar-name {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--green-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bar-track {
+  background: var(--bg-panel-3);
+  border: 1px solid var(--green-dim);
+  height: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  position: relative;
+}
+.bar-fill::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 2px;
+}
+.bar-fill-red { background: var(--red-mid); }
+.bar-fill-red::after { background: var(--red-alert); }
+.bar-fill-orange { background: var(--orange-mid); }
+.bar-fill-orange::after { background: var(--orange-warn); }
+.bar-fill-yellow { background: #886600; }
+.bar-fill-yellow::after { background: var(--yellow-hot); }
+.bar-fill-green { background: var(--green-dim); }
+.bar-fill-green::after { background: var(--green-mid); }
+.bar-val {
+  font-size: 9px;
+  color: var(--green-muted);
+  text-align: right;
+}
+
+/* ── THREAT LOG ──────────────────────────────────────────────────── */
+.threat-item {
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(13,90,18,0.3);
+}
+.threat-item:last-child { border-bottom: none; }
+.threat-name {
+  font-size: 10px;
+  color: var(--yellow-warn);
+}
+.threat-detail {
+  font-size: 9px;
+  color: var(--red-bright);
+  margin-top: 1px;
+}
+.threat-meta {
+  font-size: 8px;
+  color: var(--green-muted);
+  letter-spacing: 1px;
+}
+
+/* ── TOP ZIPS TABLE ──────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--green-muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--green-dim);
+  padding: 4px 6px;
+  text-align: left;
+}
+.data-table td {
+  font-size: 10px;
+  color: var(--green-text);
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(13,90,18,0.2);
+}
+.data-table tr:hover td { background: rgba(0,255,65,0.04); color: var(--green-bright); }
+.col-green { color: var(--green-bright) !important; }
+.col-red { color: var(--red-bright) !important; }
+.col-yellow { color: var(--yellow-warn) !important; }
+.col-cyan { color: var(--cyan-bright) !important; }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+.footer-bar {
+  background: var(--bg-panel-2);
+  border-top: 2px solid var(--green-mid);
+  padding: 5px 20px;
+  font-size: 9px;
+  color: var(--green-muted);
+  letter-spacing: 0.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.footer-bar span { color: var(--green-text); }
+
+/* ── STATUS DOT ──────────────────────────────────────────────────── */
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.dot-green { background: var(--green-bright); }
+.dot-red { background: var(--red-alert); }
+
+/* ── DIVIDER ─────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green-mid), transparent);
+  margin: 8px 0;
+}
+
+/* ── LOADING ─────────────────────────────────────────────────────── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-void);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  transition: opacity 0.5s;
+}
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.loading-text {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--green-bright);
+  letter-spacing: 4px;
+  margin-bottom: 16px;
+}
+.loading-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--green-muted);
+  letter-spacing: 1px;
+}
+.loading-bar {
+  width: 200px;
+  height: 4px;
+  background: var(--bg-panel-3);
+  border: 1px solid var(--green-dim);
+  margin-top: 12px;
+  overflow: hidden;
+}
+.loading-bar-fill {
+  height: 100%;
+  background: var(--green-bright);
+  width: 0%;
+  transition: width 0.3s;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .main-content { grid-template-columns: 1fr; }
+  .right-panel { max-height: 50vh; }
+  .stat-strip { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-text">SOLARSHIELD</div>
+  <div class="loading-sub">INITIALIZING GRID THREAT MAP...</div>
+  <div class="loading-bar"><div class="loading-bar-fill" id="loading-bar"></div></div>
+  <div class="loading-sub" id="loading-status" style="margin-top:8px;">connecting to data feed</div>
+</div>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- TITLE BAR -->
+  <div class="title-bar">
+    <div style="display:flex;align-items:center;">
+      <span class="brand">SOLARSHIELD</span>
+      <span class="sub">GRID THREAT INTELLIGENCE // V1.0</span>
+    </div>
+    <div class="title-right">
+      <span class="tag tag-green-filled">ACTIVE</span>
+      <span class="tag tag-cyan">32,958 ZCTAS</span>
+      <span style="font-size:9px;color:var(--green-muted);" id="clock">00:00:00</span>
+    </div>
+  </div>
+
+  <!-- STAT STRIP -->
+  <div class="stat-strip">
+    <div class="stat-card">
+      <div class="stat-lbl">ZCTAS ANALYZED</div>
+      <div class="stat-num stat-num-green" id="kpi-zctas">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">CRITICAL ZONES</div>
+      <div class="stat-num stat-num-red" id="kpi-critical">--</div>
+      <div class="stat-sub">ML CLUSTER</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">ELEVATED ZONES</div>
+      <div class="stat-num stat-num-yellow" id="kpi-elevated">--</div>
+      <div class="stat-sub">ML CLUSTER</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">SOLAR CVES</div>
+      <div class="stat-num stat-num-cyan" id="kpi-cves">--</div>
+      <div class="stat-sub">MAX CVSS: <span id="kpi-maxcvss">--</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">VENDORS TRACKED</div>
+      <div class="stat-num stat-num-green" id="kpi-vendors">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">CYBER PRESSURE</div>
+      <div class="stat-num stat-num-red" id="kpi-pressure">--</div>
+      <div class="stat-sub">STATE-WEIGHTED</div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- MAP -->
+    <div class="map-container">
+      <div id="map-deck"></div>
+
+      <!-- TOOLTIP -->
+      <div class="map-tooltip" id="tooltip">
+        <div class="tooltip-zip" id="tt-zip"></div>
+        <div class="tooltip-score" id="tt-score"></div>
+        <div class="tooltip-row"><span class="tooltip-label">SOLAR CANDIDATES</span><span id="tt-solar"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">SINGLE FAMILY</span><span id="tt-sf"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">OWNER OCCUPIED</span><span id="tt-owner"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">MEDIAN VALUE</span><span id="tt-value"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">MEDIAN INCOME</span><span id="tt-income"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">HOUSING UNITS</span><span id="tt-units"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">STATE</span><span id="tt-state"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">CYBER PRESSURE</span><span id="tt-cyber"></span></div>
+        <div class="tooltip-row"><span class="tooltip-label">ML CLUSTER</span><span id="tt-cluster"></span></div>
+      </div>
+
+      <!-- LEGEND -->
+      <div class="map-legend">
+        <div class="section-label">// ML RISK CLUSTER</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff2222;box-shadow:0 0 6px #ff2222;"></div>CRITICAL (&gt;50)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6600;box-shadow:0 0 6px #ff6600;"></div>ELEVATED (42-50)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f0e040;box-shadow:0 0 4px #f0e040;"></div>MODERATE (36-42)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#0d7a1a;"></div>LOW / MINIMAL (&lt;36)</div>
+      </div>
+    </div>
+
+    <!-- FLOAT TOGGLE (shown when panel is collapsed) -->
+    <div class="panel-float-toggle" id="float-toggle" onclick="expandPanel()">PANEL</div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel" id="right-panel">
+      <div class="panel-resize-handle" id="resize-handle"></div>
+      <button class="panel-toggle-btn" onclick="collapsePanel()" title="Collapse panel">✕</button>
+
+      <!-- ADDRESS LOOKUP -->
+      <div class="panel-section">
+        <div class="panel-title">// ADDRESS LOOKUP</div>
+        <input class="terminal-input" id="inp-address" placeholder="STREET ADDRESS" />
+        <div class="input-row">
+          <input class="terminal-input" id="inp-city" placeholder="CITY" />
+          <div class="input-row" style="gap:4px;">
+            <input class="terminal-input" id="inp-state" placeholder="ST" maxlength="2" style="text-transform:uppercase;" />
+            <input class="terminal-input" id="inp-zip" placeholder="ZIP" maxlength="5" />
+          </div>
+        </div>
+        <button class="terminal-btn" id="btn-lookup" onclick="doLookup()">QUERY PROPERTY</button>
+        <div id="lookup-error" style="color:var(--red-bright);font-size:9px;margin-top:4px;display:none;"></div>
+      </div>
+
+      <!-- PROPERTY CARD -->
+      <div class="panel-section" id="property-card">
+        <div class="panel-title">// PROPERTY INTELLIGENCE</div>
+        <div class="property-header" id="prop-address"></div>
+
+        <div class="property-grid">
+          <div class="prop-item">
+            <div class="prop-label">YEAR BUILT</div>
+            <div class="prop-value" id="prop-year">--</div>
+          </div>
+          <div class="prop-item">
+            <div class="prop-label">EST. VALUE</div>
+            <div class="prop-value" id="prop-value">--</div>
+          </div>
+          <div class="prop-item">
+            <div class="prop-label">TYPE</div>
+            <div class="prop-value-sm" id="prop-type">--</div>
+          </div>
+          <div class="prop-item">
+            <div class="prop-label">SIZE</div>
+            <div class="prop-value-sm" id="prop-size">--</div>
+          </div>
+          <div class="prop-item">
+            <div class="prop-label">BEDS / BATHS</div>
+            <div class="prop-value-sm" id="prop-beds">--</div>
+          </div>
+          <div class="prop-item">
+            <div class="prop-label">OCCUPANCY</div>
+            <div class="prop-value-sm" id="prop-occ">--</div>
+          </div>
+        </div>
+
+        <div id="solar-assessment"></div>
+
+        <!-- Community risk badge -->
+        <div class="risk-badge" id="risk-badge">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div class="prop-label">NEIGHBORHOOD RISK</div>
+              <div class="risk-tier" id="risk-tier-label">--</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="prop-label">SCORE</div>
+              <div class="risk-score-big" id="risk-score-big">--</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="property-grid" style="margin-top:6px;">
+            <div class="prop-item">
+              <div class="prop-label">SOLAR CANDIDATES</div>
+              <div class="prop-value-sm" id="comm-solar">--</div>
+            </div>
+            <div class="prop-item">
+              <div class="prop-label">OWNER OCCUPIED</div>
+              <div class="prop-value-sm" id="comm-owner">--</div>
+            </div>
+            <div class="prop-item">
+              <div class="prop-label">MEDIAN VALUE</div>
+              <div class="prop-value-sm" id="comm-value">--</div>
+            </div>
+            <div class="prop-item">
+              <div class="prop-label">ML CLUSTER</div>
+              <div class="prop-value-sm" id="comm-units">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VENDOR RISK -->
+      <div class="panel-section">
+        <div class="panel-title">// VENDOR CYBER RISK</div>
+        <div id="vendor-bars"></div>
+      </div>
+
+      <!-- TOP THREAT ZIPS -->
+      <div class="panel-section">
+        <div class="panel-title">// TOP THREAT ZONES</div>
+        <div id="top-zips-table"></div>
+      </div>
+
+    </div><!-- /right-panel -->
+  </div><!-- /main-content -->
+
+  <!-- FOOTER -->
+  <div class="footer-bar">
+    <div>
+      DATA: <span>U.S. CENSUS ACS 2022</span> &nbsp;|&nbsp;
+      <span>NVD CVES</span> &nbsp;|&nbsp;
+      <span>CISA KEV</span> &nbsp;|&nbsp;
+      PROPERTY: <span>MELISSA DATA API</span>
+    </div>
+    <div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ── GLOBALS ─────────────────────────────────────────────────────────
+let riskData = [];
+let deckgl = null;
+let highlightZip = null;
+
+// ── CLOCK ───────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toTimeString().split(' ')[0];
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── HELPERS ─────────────────────────────────────────────────────────
+function fmt$(v) {
+  if (!v || v === '') return 'N/A';
+  const n = Number(v);
+  if (isNaN(n)) return 'N/A';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+  return '$' + n.toFixed(0);
+}
+function fmtPct(v) {
+  if (!v && v !== 0) return '--';
+  return (Number(v) * 100).toFixed(0) + '%';
+}
+function fmtNum(v) {
+  if (!v && v !== 0) return '--';
+  return Number(v).toLocaleString();
+}
+
+function getTier(score) {
+  if (score >= 50) return { label: 'CRITICAL', class: 'high', color: [255,34,34] };
+  if (score >= 42) return { label: 'ELEVATED', class: 'high', color: [255,102,0] };
+  if (score >= 36) return { label: 'MODERATE', class: 'medium', color: [240,224,64] };
+  return { label: 'LOW', class: 'low', color: [13,122,26] };
+}
+
+function getPointColor(d) {
+  // Use ML cluster if available, fallback to score thresholds
+  const cl = d.risk_cluster;
+  if (cl === 4) return [255, 34, 34, 230];     // CRITICAL — red
+  if (cl === 3) return [255, 102, 0, 200];      // ELEVATED — orange
+  if (cl === 2) return [240, 224, 64, 160];      // MODERATE — yellow
+  if (cl === 1) return [13, 122, 26, 130];       // LOW — green
+  return [10, 74, 18, 100];                       // MINIMAL — dim green
+}
+
+function getPointRadius(d) {
+  const cl = d.risk_cluster;
+  if (cl === 4) return 1400;
+  if (cl === 3) return 1000;
+  if (cl === 2) return 700;
+  if (cl === 1) return 500;
+  return 350;
+}
+
+// ── LOADING PROGRESS ────────────────────────────────────────────────
+function setLoading(pct, msg) {
+  document.getElementById('loading-bar').style.width = pct + '%';
+  document.getElementById('loading-status').textContent = msg;
+}
+
+// ── FETCH DATA & INIT ───────────────────────────────────────────────
+async function init() {
+  try {
+    setLoading(10, 'fetching risk data...');
+    const [riskResp, statsResp, vendorResp, topResp] = await Promise.all([
+      fetch('/api/risk-data'),
+      fetch('/api/stats'),
+      fetch('/api/vendors'),
+      fetch('/api/top-zips?n=15'),
+    ]);
+
+    setLoading(50, 'parsing data...');
+    riskData = await riskResp.json();
+    const stats = await statsResp.json();
+    const vendors = await vendorResp.json();
+    const topZips = await topResp.json();
+
+    setLoading(70, 'populating panels...');
+    populateStats(stats);
+    populateVendors(vendors);
+    populateTopZips(topZips);
+
+    setLoading(85, 'rendering map...');
+    await new Promise(r => setTimeout(r, 100)); // let DOM breathe
+    initMap();
+
+    setLoading(100, 'online');
+    setTimeout(() => {
+      document.getElementById('loading').classList.add('hidden');
+    }, 400);
+
+  } catch (e) {
+    setLoading(0, 'ERROR: ' + e.message);
+    console.error(e);
+  }
+}
+
+// ── STATS ───────────────────────────────────────────────────────────
+function populateStats(s) {
+  document.getElementById('kpi-zctas').textContent = fmtNum(s.total_zctas);
+  document.getElementById('kpi-critical').textContent = fmtNum(s.critical_count || 0);
+  document.getElementById('kpi-elevated').textContent = fmtNum(s.elevated_count || 0);
+  document.getElementById('kpi-cves').textContent = s.total_cves;
+  document.getElementById('kpi-maxcvss').textContent = s.max_cvss;
+  document.getElementById('kpi-vendors').textContent = s.vendor_count;
+  document.getElementById('kpi-pressure').textContent = s.cyber_pressure_range || '--';
+}
+
+// ── VENDORS ─────────────────────────────────────────────────────────
+function populateVendors(vendors) {
+  vendors.sort((a,b) => b.vendor_risk_score - a.vendor_risk_score);
+  const top = vendors.slice(0, 8);
+  const maxScore = Math.max(...top.map(v => v.vendor_risk_score));
+
+  let html = '';
+  for (const v of top) {
+    const pct = (v.vendor_risk_score / maxScore * 100).toFixed(0);
+    let cls = 'bar-fill-green';
+    if (v.vendor_risk_score >= 60) cls = 'bar-fill-red';
+    else if (v.vendor_risk_score >= 40) cls = 'bar-fill-orange';
+    else if (v.vendor_risk_score >= 25) cls = 'bar-fill-yellow';
+
+    html += `
+      <div class="bar-item">
+        <div class="bar-name">${v.vendor}</div>
+        <div class="bar-track"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div>
+        <div class="bar-val">${v.vendor_risk_score.toFixed(0)}</div>
+      </div>`;
+  }
+  document.getElementById('vendor-bars').innerHTML = html;
+}
+
+// ── TOP ZIPS TABLE ──────────────────────────────────────────────────
+function populateTopZips(zips) {
+  let html = `<table class="data-table">
+    <thead><tr>
+      <th>ZIP</th><th>SCORE</th><th>SOLAR %</th><th>VALUE</th>
+    </tr></thead><tbody>`;
+  for (const z of zips) {
+    const tier = getTier(z.community_risk_prior_score);
+    const scoreColor = z.community_risk_prior_score >= 70 ? 'col-red' :
+                       z.community_risk_prior_score >= 63 ? 'col-yellow' : 'col-green';
+    html += `<tr>
+      <td class="col-cyan">${z.geo_id}</td>
+      <td class="${scoreColor}">${z.community_risk_prior_score.toFixed(1)}</td>
+      <td>${fmtPct(z.solar_candidate_share)}</td>
+      <td>${fmt$(z.median_home_value)}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('top-zips-table').innerHTML = html;
+}
+
+// ── MAP ─────────────────────────────────────────────────────────────
+function initMap() {
+  const INITIAL_VIEW = {
+    latitude: 38.5,
+    longitude: -96,
+    zoom: 3.8,
+    pitch: 0,
+    bearing: 0,
+  };
+
+  const scatterLayer = new deck.ScatterplotLayer({
+    id: 'risk-scatter',
+    data: riskData,
+    getPosition: d => [Number(d.lon), Number(d.lat)],
+    getRadius: getPointRadius,
+    getFillColor: getPointColor,
+    radiusMinPixels: 1.5,
+    radiusMaxPixels: 18,
+    pickable: true,
+    antialiasing: true,
+    parameters: { blend: true },
+    onHover: onHover,
+  });
+
+  deckgl = new deck.DeckGL({
+    container: 'map-deck',
+    mapStyle: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    initialViewState: INITIAL_VIEW,
+    controller: true,
+    layers: [scatterLayer],
+    getTooltip: null,
+  });
+}
+
+function onHover(info) {
+  const tooltip = document.getElementById('tooltip');
+  if (!info.object) {
+    tooltip.style.display = 'none';
+    return;
+  }
+  const d = info.object;
+  const tier = getTier(d.community_risk_prior_score);
+  const scoreColor = d.community_risk_prior_score >= 70 ? 'var(--red-bright)' :
+                     d.community_risk_prior_score >= 63 ? 'var(--orange-warn)' :
+                     d.community_risk_prior_score >= 55 ? 'var(--yellow-warn)' : 'var(--green-text)';
+
+  document.getElementById('tt-zip').textContent = 'ZCTA ' + d.geo_id;
+  const scoreEl = document.getElementById('tt-score');
+  scoreEl.textContent = d.community_risk_prior_score.toFixed(1) + ' — ' + tier.label;
+  scoreEl.style.color = scoreColor;
+  document.getElementById('tt-solar').textContent = fmtPct(d.solar_candidate_share);
+  document.getElementById('tt-sf').textContent = fmtPct(d.single_family_share);
+  document.getElementById('tt-owner').textContent = fmtPct(d.owner_occupancy_rate);
+  document.getElementById('tt-value').textContent = fmt$(d.median_home_value);
+  document.getElementById('tt-income').textContent = fmt$(d.median_household_income);
+  document.getElementById('tt-units').textContent = fmtNum(d.total_housing_units);
+  document.getElementById('tt-state').textContent = d.state || '--';
+  document.getElementById('tt-cyber').textContent = d.solar_cyber_pressure_score ? Number(d.solar_cyber_pressure_score).toFixed(1) : '--';
+  document.getElementById('tt-cluster').textContent = d.risk_cluster_label || '--';
+
+  tooltip.style.display = 'block';
+  tooltip.style.left = (info.x + 12) + 'px';
+  tooltip.style.top = (info.y + 12) + 'px';
+}
+
+// ── FLY TO ──────────────────────────────────────────────────────────
+function flyTo(lat, lon, zoom) {
+  if (!deckgl) return;
+  deckgl.setProps({
+    initialViewState: {
+      latitude: lat,
+      longitude: lon,
+      zoom: zoom || 11,
+      pitch: 0,
+      bearing: 0,
+      transitionDuration: 1500,
+    },
+  });
+}
+
+// ── ADDRESS LOOKUP ──────────────────────────────────────────────────
+async function doLookup() {
+  const address = document.getElementById('inp-address').value.trim();
+  if (!address) return;
+
+  const btn = document.getElementById('btn-lookup');
+  const errEl = document.getElementById('lookup-error');
+  btn.disabled = true;
+  btn.textContent = 'SCANNING...';
+  btn.classList.add('terminal-btn-active');
+  errEl.style.display = 'none';
+
+  const city = document.getElementById('inp-city').value.trim();
+  const state = document.getElementById('inp-state').value.trim();
+  const zip = document.getElementById('inp-zip').value.trim();
+
+  const params = new URLSearchParams({ address, city, state, zip });
+
+  try {
+    const resp = await fetch('/api/lookup?' + params);
+    const data = await resp.json();
+
+    if (!data.success) {
+      errEl.textContent = '> ERROR: ' + (data.error || 'Property not found');
+      errEl.style.display = 'block';
+      document.getElementById('property-card').classList.remove('active');
+      return;
+    }
+
+    showPropertyCard(data);
+
+    // Fly to property or community
+    const lat = data.property.lat || (data.community && data.community.lat);
+    const lon = data.property.lon || (data.community && data.community.lon);
+    if (lat && lon) flyTo(lat, lon, 12);
+
+  } catch (e) {
+    errEl.textContent = '> CONNECTION ERROR: ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'QUERY PROPERTY';
+    btn.classList.remove('terminal-btn-active');
+  }
+}
+
+function showPropertyCard(data) {
+  const p = data.property;
+  const c = data.community;
+  const card = document.getElementById('property-card');
+  card.classList.add('active');
+
+  document.getElementById('prop-address').textContent =
+    `${p.address}, ${p.city}, ${p.state} ${p.zip_code}`;
+
+  document.getElementById('prop-year').textContent =
+    p.year_built ? p.year_built + ' (' + (2026 - p.year_built) + 'yr)' : '--';
+
+  document.getElementById('prop-value').textContent =
+    p.market_value ? fmt$(p.market_value) : (p.assessed_value ? fmt$(p.assessed_value) : '--');
+
+  document.getElementById('prop-type').textContent =
+    (p.property_type || p.structure_style || '--').toUpperCase();
+
+  const sqft = p.sq_ft ? Number(p.sq_ft).toLocaleString() + ' SF' : '--';
+  document.getElementById('prop-size').textContent = sqft;
+
+  document.getElementById('prop-beds').textContent =
+    (p.bedrooms || '--') + ' / ' + (p.baths || '--');
+
+  const occText = p.owner_occupied === true ? 'OWNER' :
+                  p.owner_occupied === false ? 'RENTER' : 'UNKNOWN';
+  document.getElementById('prop-occ').textContent = occText;
+
+  // Solar assessment
+  const isSF = (p.property_type + ' ' + p.structure_style).toLowerCase()
+    .match(/single|detach|resid/);
+  const isOwner = p.owner_occupied === true;
+  const modern = p.year_built && p.year_built >= 1980;
+  const signals = [!!isSF, isOwner, !!modern].filter(Boolean).length;
+
+  const assessEl = document.getElementById('solar-assessment');
+  if (signals >= 2) {
+    assessEl.innerHTML = '<div class="solar-tag solar-high">HIGH SOLAR CANDIDATE</div>';
+  } else if (signals === 1) {
+    assessEl.innerHTML = '<div class="solar-tag solar-medium">MODERATE CANDIDATE</div>';
+  } else {
+    assessEl.innerHTML = '<div class="solar-tag solar-low">LOW CANDIDATE</div>';
+  }
+
+  // Community risk badge
+  const badge = document.getElementById('risk-badge');
+  if (c) {
+    badge.style.display = 'block';
+    const tier = getTier(c.risk_score);
+    badge.className = 'risk-badge risk-badge-' + tier.class;
+
+    document.getElementById('risk-tier-label').textContent = tier.label + ' RISK';
+    const scoreBig = document.getElementById('risk-score-big');
+    scoreBig.textContent = c.risk_score;
+    scoreBig.style.color = c.risk_score >= 70 ? 'var(--red-bright)' :
+                           c.risk_score >= 63 ? 'var(--orange-warn)' :
+                           c.risk_score >= 55 ? 'var(--yellow-warn)' : 'var(--green-text)';
+
+    document.getElementById('comm-solar').textContent = fmtPct(c.solar_candidate_share);
+    document.getElementById('comm-owner').textContent = fmtPct(c.owner_occupancy_rate);
+    document.getElementById('comm-value').textContent = fmt$(c.median_home_value);
+    document.getElementById('comm-units').textContent = c.risk_cluster || '--';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Allow Enter key in address field
+document.addEventListener('DOMContentLoaded', () => {
+  ['inp-address','inp-city','inp-state','inp-zip'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLookup();
+    });
+  });
+});
+
+// ── PANEL COLLAPSE / RESIZE ─────────────────────────────────────────
+function collapsePanel() {
+  const panel = document.getElementById('right-panel');
+  const floatBtn = document.getElementById('float-toggle');
+  panel.classList.add('collapsed');
+  floatBtn.style.display = 'flex';
+}
+
+function expandPanel() {
+  const panel = document.getElementById('right-panel');
+  const floatBtn = document.getElementById('float-toggle');
+  panel.classList.remove('collapsed');
+  panel.style.width = '340px';
+  floatBtn.style.display = 'none';
+}
+
+// Drag-to-resize
+(function () {
+  const handle = document.getElementById('resize-handle');
+  const panel = document.getElementById('right-panel');
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startW = panel.offsetWidth;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = startX - e.clientX; // drag left = wider
+    const newW = Math.min(560, Math.max(240, startW + delta));
+    panel.style.width = newW + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (dragging) {
+      dragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+})();
+
+// ── INIT ────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

@@ -20,8 +20,8 @@ import argparse
 import json
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
-OUTPUT_DIR = Path(__file__).parent.parent / "output"
+DATA_DIR = Path(__file__).parent.parent.parent / "data"
+OUTPUT_DIR = Path(__file__).parent.parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Load reference data

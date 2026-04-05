@@ -18,8 +18,8 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
-OUTPUT_DIR = Path(__file__).parent.parent / "output"
+DATA_DIR = Path(__file__).parent.parent.parent / "data"
+OUTPUT_DIR = Path(__file__).parent.parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 GRID_DATA = json.loads((DATA_DIR / "grid_capacity.json").read_text())

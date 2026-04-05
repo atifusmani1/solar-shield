@@ -29,7 +29,7 @@ except ImportError:
     print("Run: pip install shodan")
     raise
 
-OUTPUT_DIR = Path(__file__).parent.parent / "output"
+OUTPUT_DIR = Path(__file__).parent.parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # All queries from shodan_web_queries.txt, grouped by vendor

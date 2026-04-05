@@ -20,7 +20,7 @@ import requests
 # EIA v2 API — no key required
 EIA_BASE = "https://api.eia.gov/v2"
 
-OUTPUT_DIR = Path(__file__).parent.parent / "output"
+OUTPUT_DIR = Path(__file__).parent.parent.parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Pre-loaded from data/grid_capacity.json as fallback
